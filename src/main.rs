@@ -1,7 +1,14 @@
 use std::f32::consts::PI;
 
+use assets::ImageAssets;
 use bevy::{math::Affine2, prelude::*};
 use bevy_asset_loader::prelude::*;
+use lantern::{Lantern, LanternPlugin};
+use street::StreetPlugin;
+
+mod assets;
+mod lantern;
+mod street;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 enum GameState {
@@ -13,6 +20,7 @@ enum GameState {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins((LanternPlugin, StreetPlugin))
         .init_state::<GameState>()
         .add_loading_state(
             LoadingState::new(GameState::Loading)
@@ -22,7 +30,8 @@ fn main() {
         .add_systems(OnEnter(GameState::Running), setup)
         .add_systems(
             Update,
-            (player_move, camera_follow_player).run_if(in_state(GameState::Running)),
+            (patch_lights, player_move, camera_follow_player, cars_drive)
+                .run_if(in_state(GameState::Running)),
         )
         .run();
 }
@@ -31,15 +40,11 @@ fn hex_color(color: &str) -> Color {
     Color::Srgba(Srgba::hex(color).unwrap())
 }
 
-#[derive(AssetCollection, Resource)]
-pub struct ImageAssets {
-    #[asset(path = "sprites/road.jpg")]
-    #[asset(image(sampler(filter = linear, wrap=repeat)))]
-    pub road: Handle<Image>,
-}
-
 #[derive(Component)]
 struct Player;
+
+#[derive(Component)]
+struct Car;
 
 fn setup(
     mut commands: Commands,
@@ -48,19 +53,19 @@ fn setup(
     image_assets: Res<ImageAssets>,
 ) {
     // floor
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(100.0, 0.1, 10.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color_texture: Some(image_assets.road.clone()),
-            uv_transform: Affine2::from_scale_angle_translation(
-                Vec2::new(20.0, 2.0),
-                PI / 2.0,
-                Vec2::ZERO,
-            ),
-            ..default()
-        })),
-        Transform::from_xyz(0.0, -0.1, 0.0),
-    ));
+    //commands.spawn((
+    //    Mesh3d(meshes.add(Cuboid::new(100.0, 0.1, 10.0))),
+    //    MeshMaterial3d(materials.add(StandardMaterial {
+    //        base_color_texture: Some(image_assets.road.clone()),
+    //        uv_transform: Affine2::from_scale_angle_translation(
+    //            Vec2::new(20.0, 2.0),
+    //            PI / 2.0,
+    //            Vec2::ZERO,
+    //        ),
+    //        ..default()
+    //    })),
+    //    Transform::from_xyz(0.0, -0.1, 0.0),
+    //));
 
     // cube
     commands.spawn((
@@ -69,18 +74,32 @@ fn setup(
         MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
         Transform::from_xyz(0.0, 0.5, 0.0),
     ));
-    // light
+
     commands.spawn((
-        PointLight {
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(4.0, 8.0, 4.0),
+        SceneRoot(image_assets.car.clone()),
+        Car,
+        Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
     ));
+
+    for i in 0..10 {
+        commands.spawn((
+            Lantern,
+            Transform::from_rotation(Quat::from_rotation_y(-PI / 2.0)).with_translation(Vec3::new(
+                3.0 * i as f32,
+                0.0,
+                0.0,
+            )),
+        ));
+    }
+
     // camera
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 12.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        //Projection::Orthographic(OrthographicProjection {
+        //    scale: 0.01,
+        //    ..OrthographicProjection::default_3d()
+        //}),
     ));
 }
 
@@ -114,4 +133,16 @@ fn camera_follow_player(
     *camera_transform =
         Transform::from_translation(player_transform.translation + Vec3::new(0.0, 12.5, 5.0))
             .looking_at(player_transform.translation, Vec3::Y);
+}
+
+fn cars_drive(mut q: Query<&mut Transform, With<Car>>) {
+    for mut t in q.iter_mut() {
+        t.translation.x += 0.02;
+    }
+}
+
+fn patch_lights(mut q: Query<&mut Transform, With<PointLight>>) {
+    for mut t in q.iter_mut() {
+        t.translation.x += 0.00000001;
+    }
 }
