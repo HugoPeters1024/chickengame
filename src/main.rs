@@ -33,6 +33,7 @@ fn main() {
             (patch_lights, player_move, camera_follow_player, cars_drive)
                 .run_if(in_state(GameState::Running)),
         )
+        //       .insert_resource(AmbientLight { brightness: 0.0, ..default() })
         .run();
 }
 
@@ -81,25 +82,14 @@ fn setup(
         Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
     ));
 
-    for i in 0..10 {
-        commands.spawn((
-            Lantern,
-            Transform::from_rotation(Quat::from_rotation_y(-PI / 2.0)).with_translation(Vec3::new(
-                3.0 * i as f32,
-                0.0,
-                0.0,
-            )),
-        ));
-    }
-
     // camera
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 12.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        //Projection::Orthographic(OrthographicProjection {
-        //    scale: 0.01,
-        //    ..OrthographicProjection::default_3d()
-        //}),
+        // Projection::Orthographic(OrthographicProjection {
+        //     scale: 0.01,
+        //     ..OrthographicProjection::default_3d()
+        // }),
     ));
 }
 

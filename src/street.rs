@@ -1,8 +1,12 @@
 use std::f32::consts::PI;
 
-use bevy::{math::Affine2, prelude::*, utils::HashMap};
+use bevy::{
+    math::Affine2,
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
-use crate::{GameState, Player, assets::ImageAssets};
+use crate::{GameState, Player, assets::ImageAssets, lantern::Lantern};
 
 pub struct StreetPlugin;
 
@@ -37,11 +41,15 @@ fn ensure_tiles_spawned(
         (player.translation().z / GRID_HEIGHT) as i32,
     );
 
-    for dy in -3..=3 {
-        for dx in -3..=3 {
+    let mut despawn: HashSet<Entity> = street_tiles.0.values().cloned().collect();
+
+    for dy in -6..=6 {
+        for dx in -6..=6 {
             let x = grid_loc.x + dx;
             let y = grid_loc.y + dy;
-            if y > 1 || y < -1 { continue };
+            if y > 1 || y < -1 {
+                continue;
+            };
             if !street_tiles.0.contains_key(&IVec2::new(x, y)) {
                 street_tiles.0.insert(
                     IVec2::new(x, y),
@@ -57,11 +65,36 @@ fn ensure_tiles_spawned(
                                 ),
                                 ..default()
                             })),
-                            Transform::from_xyz(x as f32 * GRID_WIDTH, -0.1, y as f32 * GRID_HEIGHT),
+                            Transform::from_xyz(
+                                x as f32 * GRID_WIDTH,
+                                -0.1,
+                                y as f32 * GRID_HEIGHT,
+                            ),
                         ))
+                        .with_children(|parent| {
+                            if x % 4 == 0 && y != 0 {
+                                parent.spawn((
+                                    Lantern,
+                                    Transform::from_rotation(Quat::from_rotation_y(
+                                        -PI / 2.0 * if y > 0 { -1.0 } else { 1.0 },
+                                    ))
+                                    .with_translation(
+                                        Vec3::new(0.0, 0.0, 0.8 * if y > 0 { 1.0 } else { -1.0 }),
+                                    ),
+                                ));
+                            }
+                        })
                         .id(),
                 );
+            } else {
+                despawn.remove(street_tiles.0.get(&IVec2::new(x, y)).unwrap());
             }
         }
     }
+
+    for entity in &despawn {
+        commands.entity(*entity).despawn_recursive();
+    }
+
+    street_tiles.0.retain(|_, v| !despawn.contains(v));
 }
