@@ -131,7 +131,7 @@ fn cars_drive(mut q: Query<&mut Transform, With<Car>>) {
     }
 }
 
-fn patch_lights(mut q: Query<&mut Transform, With<PointLight>>) {
+fn patch_lights(mut q: Query<&mut Transform, With<SpotLight>>) {
     for mut t in q.iter_mut() {
         t.translation.x += 0.00000001;
     }

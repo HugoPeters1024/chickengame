@@ -47,47 +47,80 @@ fn ensure_tiles_spawned(
         for dx in -6..=6 {
             let x = grid_loc.x + dx;
             let y = grid_loc.y + dy;
-            if y > 1 || y < -1 {
-                continue;
-            };
-            if !street_tiles.0.contains_key(&IVec2::new(x, y)) {
-                street_tiles.0.insert(
-                    IVec2::new(x, y),
-                    commands
-                        .spawn((
-                            Mesh3d(meshes.add(Cuboid::new(GRID_WIDTH, 0.1, GRID_HEIGHT))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color_texture: Some(image_assets.road.clone()),
-                                uv_transform: Affine2::from_scale_angle_translation(
-                                    Vec2::new(1.0, 1.0),
-                                    PI / 2.0,
-                                    Vec2::ZERO,
-                                ),
-                                ..default()
-                            })),
-                            Transform::from_xyz(
-                                x as f32 * GRID_WIDTH,
-                                -0.1,
-                                y as f32 * GRID_HEIGHT,
-                            ),
-                        ))
-                        .with_children(|parent| {
-                            if x % 4 == 0 && y != 0 {
-                                parent.spawn((
-                                    Lantern,
-                                    Transform::from_rotation(Quat::from_rotation_y(
-                                        -PI / 2.0 * if y > 0 { -1.0 } else { 1.0 },
-                                    ))
-                                    .with_translation(
-                                        Vec3::new(0.0, 0.0, 0.8 * if y > 0 { 1.0 } else { -1.0 }),
+            let loc = IVec2::new(x, y);
+            match y {
+                -1 | 0 | 1 => {
+                    if !street_tiles.0.contains_key(&loc) {
+                        street_tiles.0.insert(
+                            loc,
+                            commands
+                                .spawn((
+                                    Mesh3d(meshes.add(Cuboid::new(GRID_WIDTH, 0.1, GRID_HEIGHT))),
+                                    MeshMaterial3d(materials.add(StandardMaterial {
+                                        base_color_texture: Some(image_assets.road.clone()),
+                                        uv_transform: Affine2::from_scale_angle_translation(
+                                            Vec2::new(1.0, 1.0),
+                                            PI / 2.0,
+                                            Vec2::ZERO,
+                                        ),
+                                        ..default()
+                                    })),
+                                    Transform::from_xyz(
+                                        x as f32 * GRID_WIDTH,
+                                        -0.1,
+                                        y as f32 * GRID_HEIGHT,
                                     ),
-                                ));
-                            }
-                        })
-                        .id(),
-                );
-            } else {
-                despawn.remove(street_tiles.0.get(&IVec2::new(x, y)).unwrap());
+                                ))
+                                .with_children(|parent| {
+                                    if x % 4 == 0 && y != 0 {
+                                        parent.spawn((
+                                            Lantern,
+                                            Transform::from_rotation(Quat::from_rotation_y(
+                                                -PI / 2.0 * if y > 0 { -1.0 } else { 1.0 },
+                                            ))
+                                            .with_translation(Vec3::new(
+                                                0.0,
+                                                0.0,
+                                                1.2 * if y > 0 { 1.0 } else { -1.0 },
+                                            )),
+                                        ));
+                                    }
+                                })
+                                .id(),
+                        );
+                    } else {
+                        despawn.remove(street_tiles.0.get(&loc).unwrap());
+                    }
+                }
+                2 | -2 => {
+                    if !street_tiles.0.contains_key(&loc) {
+                        street_tiles.0.insert(
+                            loc,
+                            commands
+                                .spawn((
+                                    Mesh3d(meshes.add(Cuboid::new(GRID_WIDTH, 0.1, GRID_HEIGHT))),
+                                    MeshMaterial3d(materials.add(StandardMaterial {
+                                        base_color_texture: Some(image_assets.tiles.clone()),
+                                        uv_transform: Affine2::from_scale_angle_translation(
+                                            Vec2::new(1.0, 1.0),
+                                            PI / 2.0,
+                                            Vec2::ZERO,
+                                        ),
+                                        ..default()
+                                    })),
+                                    Transform::from_xyz(
+                                        x as f32 * GRID_WIDTH,
+                                        -0.1,
+                                        y as f32 * GRID_HEIGHT,
+                                    ),
+                                ))
+                                .id(),
+                        );
+                    } else {
+                        despawn.remove(street_tiles.0.get(&loc).unwrap());
+                    }
+                }
+                _ => {}
             }
         }
     }

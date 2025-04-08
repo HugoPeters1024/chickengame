@@ -24,13 +24,20 @@ fn on_spawn(mut commands: Commands, q: Query<Entity, Added<Lantern>>, assets: Re
             ));
 
             parent.spawn((
-                Transform::from_translation(Vec3::new(1.0, 2.4, 0.0)),
-                PointLight {
+                Transform::from_translation(Vec3::new(1.0, 2.4, 0.0))
+                    .looking_at(Vec3::new(1.0, 0.0, 0.0), Vec3::Y),
+                SpotLight {
                     shadows_enabled: true,
                     range: 4.0,
                     intensity: 1000.0 * 1000.0 * 0.1,
                     ..default()
                 },
+                //PointLight {
+                //    shadows_enabled: true,
+                //    range: 4.0,
+                //    intensity: 1000.0 * 1000.0 * 0.1,
+                //    ..default()
+                //},
             ));
         });
     }
