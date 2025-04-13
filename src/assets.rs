@@ -11,9 +11,16 @@ pub struct ImageAssets {
     #[asset(image(sampler(filter = linear, wrap=repeat)))]
     pub tiles: Handle<Image>,
 
+    #[asset(path = "sprites/grass.jpg")]
+    #[asset(image(sampler(filter = linear, wrap=repeat)))]
+    pub grass: Handle<Image>,
+
     #[asset(path = "models/toycar.glb#Scene0")]
     pub car: Handle<Scene>,
 
     #[asset(path = "models/lantern.glb#Scene0")]
     pub lantern: Handle<Scene>,
+
+    #[asset(path = "models/chicken.glb#Scene0")]
+    pub chicken: Handle<Scene>,
 }

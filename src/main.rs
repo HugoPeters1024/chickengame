@@ -1,12 +1,13 @@
-use std::f32::consts::PI;
-
 use assets::ImageAssets;
-use bevy::{math::Affine2, prelude::*};
+use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
-use lantern::{Lantern, LanternPlugin};
+use bevy_rapier3d::prelude::*;
+use car::{Car, CarPlugin};
+use lantern::LanternPlugin;
 use street::StreetPlugin;
 
 mod assets;
+mod car;
 mod lantern;
 mod street;
 
@@ -20,7 +21,9 @@ enum GameState {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        .add_plugins((LanternPlugin, StreetPlugin))
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+//        .add_plugins(RapierDebugRenderPlugin::default())
+        .add_plugins((LanternPlugin, StreetPlugin, CarPlugin))
         .init_state::<GameState>()
         .add_loading_state(
             LoadingState::new(GameState::Loading)
@@ -30,57 +33,34 @@ fn main() {
         .add_systems(OnEnter(GameState::Running), setup)
         .add_systems(
             Update,
-            (patch_lights, player_move, camera_follow_player, cars_drive)
-                .run_if(in_state(GameState::Running)),
+            (patch_lights, player_move, camera_follow_player).run_if(in_state(GameState::Running)),
         )
-        //       .insert_resource(AmbientLight { brightness: 0.0, ..default() })
+        .insert_resource(AmbientLight {
+            brightness: 30.0,
+            ..default()
+        })
         .run();
-}
-
-fn hex_color(color: &str) -> Color {
-    Color::Srgba(Srgba::hex(color).unwrap())
 }
 
 #[derive(Component)]
 struct Player;
 
-#[derive(Component)]
-struct Car;
-
-fn setup(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    image_assets: Res<ImageAssets>,
-) {
-    // floor
-    //commands.spawn((
-    //    Mesh3d(meshes.add(Cuboid::new(100.0, 0.1, 10.0))),
-    //    MeshMaterial3d(materials.add(StandardMaterial {
-    //        base_color_texture: Some(image_assets.road.clone()),
-    //        uv_transform: Affine2::from_scale_angle_translation(
-    //            Vec2::new(20.0, 2.0),
-    //            PI / 2.0,
-    //            Vec2::ZERO,
-    //        ),
-    //        ..default()
-    //    })),
-    //    Transform::from_xyz(0.0, -0.1, 0.0),
-    //));
-
+fn setup(mut commands: Commands, image_assets: Res<ImageAssets>) {
     // cube
-    commands.spawn((
-        Player,
-        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-        Transform::from_xyz(0.0, 0.5, 0.0),
-    ));
+    commands
+        .spawn((
+            Player,
+            Transform::from_xyz(0.0, 0.5, 0.0),
+            Collider::cuboid(0.5, 0.5, 0.5),
+            RigidBody::Dynamic,
+            LockedAxes::ROTATION_LOCKED,
+        ))
+        .with_child((
+            SceneRoot(image_assets.chicken.clone()),
+            Transform::from_scale(Vec3::splat(0.1)),
+        ));
 
-    commands.spawn((
-        SceneRoot(image_assets.car.clone()),
-        Car,
-        Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)),
-    ));
+    commands.spawn((Car, Transform::from_translation(Vec3::new(-3.0, 0.0, 0.0))));
 
     // camera
     commands.spawn((
@@ -95,6 +75,7 @@ fn setup(
 
 fn player_move(mut player: Query<&mut Transform, With<Player>>, keys: Res<ButtonInput<KeyCode>>) {
     let mut player = player.single_mut();
+    let old_translation = player.translation;
     for key in keys.get_pressed() {
         match key {
             KeyCode::ArrowRight => player.translation.x += 0.02,
@@ -104,6 +85,14 @@ fn player_move(mut player: Query<&mut Transform, With<Player>>, keys: Res<Button
             _ => {}
         }
     }
+
+    let dtrans = old_translation - player.translation;
+    let mut player_copy = player.clone();
+    if dtrans.length() > 0.001 {
+        player_copy.look_to(dtrans, Vec3::Y);
+    }
+
+    player.rotation = player.rotation.lerp(player_copy.rotation, 0.15);
 }
 
 fn camera_follow_player(
@@ -120,15 +109,12 @@ fn camera_follow_player(
         return;
     };
 
-    *camera_transform =
+    let target =
         Transform::from_translation(player_transform.translation + Vec3::new(0.0, 12.5, 5.0))
             .looking_at(player_transform.translation, Vec3::Y);
-}
 
-fn cars_drive(mut q: Query<&mut Transform, With<Car>>) {
-    for mut t in q.iter_mut() {
-        t.translation.x += 0.02;
-    }
+    camera_transform.translation = camera_transform.translation.lerp(target.translation, 0.05);
+    camera_transform.rotation = camera_transform.rotation.lerp(target.rotation, 0.05);
 }
 
 fn patch_lights(mut q: Query<&mut Transform, With<SpotLight>>) {
