@@ -1,8 +1,9 @@
 use assets::ImageAssets;
-use bevy::prelude::*;
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_asset_loader::prelude::*;
 use bevy_rapier3d::prelude::*;
 use car::{Car, CarPlugin};
+use iyes_perf_ui::{prelude::PerfUiDefaultEntries, PerfUiPlugin};
 use lantern::LanternPlugin;
 use street::StreetPlugin;
 
@@ -22,7 +23,12 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-//        .add_plugins(RapierDebugRenderPlugin::default())
+        //        .add_plugins(RapierDebugRenderPlugin::default())
+        .add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin)
+        .add_plugins(bevy::diagnostic::SystemInformationDiagnosticsPlugin)
+        .add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin)
+        .add_plugins(PerfUiPlugin)
         .add_plugins((LanternPlugin, StreetPlugin, CarPlugin))
         .init_state::<GameState>()
         .add_loading_state(
@@ -46,6 +52,8 @@ fn main() {
 struct Player;
 
 fn setup(mut commands: Commands, image_assets: Res<ImageAssets>) {
+    commands.spawn(PerfUiDefaultEntries::default());
+
     // cube
     commands
         .spawn((
@@ -54,6 +62,7 @@ fn setup(mut commands: Commands, image_assets: Res<ImageAssets>) {
             Collider::cuboid(0.5, 0.5, 0.5),
             RigidBody::Dynamic,
             LockedAxes::ROTATION_LOCKED,
+            InheritedVisibility::default(),
         ))
         .with_child((
             SceneRoot(image_assets.chicken.clone()),
@@ -71,17 +80,26 @@ fn setup(mut commands: Commands, image_assets: Res<ImageAssets>) {
         //     ..OrthographicProjection::default_3d()
         // }),
     ));
+
+    commands.spawn((
+        DirectionalLight {
+            shadows_enabled: true,
+            illuminance: light_consts::lux::CLEAR_SUNRISE,
+            ..default()
+        },
+        Transform::from_xyz(3.0, 3.0, 3.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }
 
-fn player_move(mut player: Query<&mut Transform, With<Player>>, keys: Res<ButtonInput<KeyCode>>) {
+fn player_move(mut player: Query<&mut Transform, With<Player>>, keys: Res<ButtonInput<KeyCode>>, time: Res<Time>) {
     let mut player = player.single_mut();
     let old_translation = player.translation;
     for key in keys.get_pressed() {
         match key {
-            KeyCode::ArrowRight => player.translation.x += 0.02,
-            KeyCode::ArrowLeft => player.translation.x -= 0.02,
-            KeyCode::ArrowUp => player.translation.z -= 0.02,
-            KeyCode::ArrowDown => player.translation.z += 0.02,
+            KeyCode::ArrowRight | KeyCode::KeyD => player.translation.x += 2.0 * time.delta_secs(),
+            KeyCode::ArrowLeft | KeyCode::KeyA => player.translation.x -= 2.0 * time.delta_secs(),
+            KeyCode::ArrowUp | KeyCode::KeyW => player.translation.z -= 2.0 * time.delta_secs(),
+            KeyCode::ArrowDown | KeyCode::KeyS => player.translation.z += 2.0 * time.delta_secs(),
             _ => {}
         }
     }
